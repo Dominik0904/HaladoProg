@@ -1,20 +1,17 @@
 # Sudoku konzolos alkalmazás (Python / VS Code)
 
-Ez a projekt egy **konzolos Sudoku játék és megoldó** Python nyelven, amely VS Code-ban futtatható.  
-A program kezeli a feladványokat, képes azokat automatikusan megoldani, a felhasználóval interaktívan játszani, pontozni és menteni a játékállást.
+Ez a projekt egy grafikus Sudoku játék, amely Pythonban, Tkinterrel készült.  
+A program képes új Sudoku táblákat generálni különböző nehézségi szinteken, ellenőrizni a megoldást, időt mérni, pontszámot számolni és menteni/betölteni a játékot.
 
-## Fő funkciók
+## Funkciók
 
-- Sudoku feladványok betöltése `puzzles.txt` fájlból
-- Feladványok listázása és megtekintése
-- Automatikus Sudoku-megoldás (backtracking algoritmus)
+- 9×9-es Sudoku feladvány generálása
+- Nehézségválasztás: könnyű, közepes, nehéz
 - Nehézség becslése (üres mezők száma alapján)
+- Időmérés és pontszám megjelenítése
 - Megoldás egyediségének ellenőrzése (van-e több megoldás)
-- **Interaktív játék mód** (a felhasználó oldja meg a táblát)
-  - pontozás (helyes / hibás lépések, tippek, befejezés)
-  - időmérés
-  - hibás mezők kiemelése
-  - tipp kérés (egy helyes mező felfedése)
-- Játék mentése és betöltése (`savegame.txt`)
-- Új Sudoku feladvány generálása (könnyű / közepes / nehéz)
-- Színes konzolos megjelenítés (fix, felhasználói és hibás mezők külön színnel)
+- Tipp kérés (-pont)
+- Automatikus Sudoku-megoldás (backtracking algoritmus)
+- Hibák jelzése és helyes mezők kiemelése ellenőrzéskor
+- Játék mentése és betöltése
+- Világos és sötét téma váltható
