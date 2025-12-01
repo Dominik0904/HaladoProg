@@ -236,7 +236,6 @@ class SudokuApp:
         self.btn_frame = btn_frame
         self.btn_check = tk.Button(btn_frame, text="Ellenőrzés", command=self.ellenorzes, width=12)
         self.btn_check.pack(side=tk.LEFT, padx=10)
-        # Itt változott: a gomb most a nehézség-választó popupot hívja
         self.btn_new = tk.Button(
             btn_frame,
             text="Új Generálása",
