@@ -158,6 +158,7 @@ class SudokuApp:
         self.cells = {}
         self.cell_state = [["empty"] * 9 for _ in range(9)]
         self.current_theme = "dark"
+        self.game_finished = False
 
         self._init_ui()
         self.uj_jatek_generalasa("közepes")
@@ -180,6 +181,8 @@ class SudokuApp:
         action_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Műveletek", menu=action_menu)
         action_menu.add_command(label="Ellenőrzés", command=self.ellenorzes)
+        self.action_menu = action_menu
+        self.menu_check_index = action_menu.index("end")
         action_menu.add_command(label="Megoldás mutatása", command=self.megoldas_mutatasa)
         action_menu.add_command(label="Tipp kérése (-20 pont)", command=self.tipp_kerese)
 
@@ -233,8 +236,13 @@ class SudokuApp:
         self.btn_frame = btn_frame
         self.btn_check = tk.Button(btn_frame, text="Ellenőrzés", command=self.ellenorzes, width=12)
         self.btn_check.pack(side=tk.LEFT, padx=10)
-        self.btn_new = tk.Button(btn_frame, text="Új Generálása", command=lambda: self.uj_jatek_generalasa("közepes"),
-                                 width=12)
+        # Itt változott: a gomb most a nehézség-választó popupot hívja
+        self.btn_new = tk.Button(
+            btn_frame,
+            text="Új Generálása",
+            command=self.valassz_nehezseget_popup,
+            width=12,
+        )
         self.btn_new.pack(side=tk.LEFT, padx=10)
 
     def validate_entry(self, new_value, widget_name):
@@ -259,6 +267,7 @@ class SudokuApp:
         self.start_time = time.time()
         self.timer_running = True
         self.update_timer()
+        self.set_game_finished(False)
 
         for r in range(9):
             for c in range(9):
@@ -312,6 +321,10 @@ class SudokuApp:
         self.lbl_score.config(text=f"Pontszám: {self.score}")
 
     def ellenorzes(self):
+        if self.game_finished:
+            messagebox.showinfo("Játék vége", "Ezt a feladványt már befejezted. Válassz új játékot.")
+            return
+
         hibak = 0
         ures = 0
         for r in range(9):
@@ -333,7 +346,12 @@ class SudokuApp:
             self.timer_running = False
             self.score += 500
             self.update_score_label()
-            messagebox.showinfo("Gratulálok!", f"Sikeresen megoldottad!\nPontszám: {self.score}")
+            self.set_game_finished(True)
+            if messagebox.askyesno(
+                "Gratulálok!",
+                f"Sikeresen megoldottad!\nPontszám: {self.score}\n\nSzeretnél új játékot indítani?"
+            ):
+                self.valassz_nehezseget_popup()
         elif hibak > 0:
             self.score -= hibak * 5
             self.update_score_label()
@@ -342,6 +360,9 @@ class SudokuApp:
             messagebox.showinfo("Ellenőrzés", "Eddig jó, de még nincs kész.")
 
     def tipp_kerese(self):
+        if self.game_finished:
+            messagebox.showinfo("Játék vége", "A játék befejeződött. Indíts új játékot.")
+            return
         ures_helyek = [(r, c) for r in range(9) for c in range(9) if self.jelenlegi_board[r][c] == 0]
         if not ures_helyek:
             messagebox.showinfo("Info", "Nincs üres mező.")
@@ -359,6 +380,8 @@ class SudokuApp:
         self.set_theme(self.current_theme)
 
     def megoldas_mutatasa(self):
+        if self.game_finished:
+            return
         if not messagebox.askyesno("Feladom", "Biztosan feladod?"):
             return
         self.timer_running = False
@@ -370,6 +393,7 @@ class SudokuApp:
                 else:
                     self.cell_state[r][c] = "solved"
         self.redraw_board()
+        self.set_game_finished(True)
         self.set_theme(self.current_theme)
 
     def mentes(self):
@@ -422,7 +446,7 @@ class SudokuApp:
         if mode == "dark":
             bg_main = "#121212"
             bg_block = "#000000"
-            bg_cell = "#3f3f3f"   # világosabb cellák, jól látszik a fekete rács
+            bg_cell = "#3f3f3f"
             fg_text = "#f5f5f5"
             readonly_bg = "#2d3f64"
             fixed_fg = "#74b9ff"
@@ -530,6 +554,37 @@ class SudokuApp:
                 padx=10,
                 pady=5,
             )
+
+    def set_game_finished(self, finished: bool):
+        self.game_finished = finished
+        state = "disabled" if finished else "normal"
+        self.btn_check.config(state=state)
+        if hasattr(self, "action_menu"):
+            self.action_menu.entryconfig(self.menu_check_index, state=state)
+
+    def valassz_nehezseget_popup(self):
+        win = tk.Toplevel(self.root)
+        win.title("Új játék nehézség")
+        win.resizable(False, False)
+        win.transient(self.root)
+        win.grab_set()
+
+        tk.Label(
+            win,
+            text="Válassz nehézséget a következő játékhoz:",
+            font=("Segoe UI", 11)
+        ).pack(padx=20, pady=10)
+
+        frame = tk.Frame(win)
+        frame.pack(pady=10)
+
+        def indit(diff):
+            win.destroy()
+            self.uj_jatek_generalasa(diff)
+
+        tk.Button(frame, text="Könnyű", width=10, command=lambda: indit("könnyű")).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Közepes", width=10, command=lambda: indit("közepes")).pack(side=tk.LEFT, padx=5)
+        tk.Button(frame, text="Nehéz", width=10, command=lambda: indit("nehéz")).pack(side=tk.LEFT, padx=5)
 
 
 if __name__ == "__main__":
