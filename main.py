@@ -1,15 +1,10 @@
+import tkinter as tk
+from tkinter import messagebox
 import time
 import random
 
 PUZZLE_FAJL = "puzzles.txt"
 SAVEGAME_FAJL = "savegame.txt"
-
-SZIN_RESET = "\033[0m"
-SZIN_KEK = "\033[94m"
-SZIN_ZOLD = "\033[92m"
-SZIN_PIROS = "\033[91m"
-SZIN_SARGA = "\033[93m"
-SZIN_HALVANY = "\033[2m"
 
 def üres_mező_keresése(board):
     for r in range(9):
@@ -21,16 +16,18 @@ def üres_mező_keresése(board):
 
 def szám_elhelyezhető(board, row, col, num):
     for c in range(9):
-        if board[row][c] == num:
+        if board[row][c] == num and c != col:
             return False
+
     for r in range(9):
-        if board[r][col] == num:
+        if board[r][col] == num and r != row:
             return False
+
     start_row = (row // 3) * 3
     start_col = (col // 3) * 3
     for r in range(start_row, start_row + 3):
         for c in range(start_col, start_col + 3):
-            if board[r][c] == num:
+            if board[r][c] == num and (r != row or c != col):
                 return False
     return True
 
@@ -49,95 +46,58 @@ def sudoku_megoldása(board):
     return False
 
 
-def tábla_megjelenítése(board):
-    print("+-------+-------+-------+")
-    for r in range(9):
-        sor_elemek = []
-        for c in range(9):
-            érték = board[r][c]
-            if érték == 0:
-                sor_elemek.append(".")
-            else:
-                sor_elemek.append(str(érték))
-        print("| {} {} {} | {} {} {} | {} {} {} |".format(
-            sor_elemek[0], sor_elemek[1], sor_elemek[2],
-            sor_elemek[3], sor_elemek[4], sor_elemek[5],
-            sor_elemek[6], sor_elemek[7], sor_elemek[8]
-        ))
-        if (r + 1) % 3 == 0:
-            print("+-------+-------+-------+")
-
-
-def tábla_megjelenítése_színes(board, eredeti=None, hibák=None):
-    """Színes tábla: eredeti számok kékkel, felhasználói zölddel, hibák pirossal."""
-    if eredeti is None:
-        eredeti = [[0] * 9 for _ in range(9)]
-    if hibák is None:
-        hibák = set()
-
-    print("+-------+-------+-------+")
-    for r in range(9):
-        sor_str = "| "
-        for c in range(9):
-            érték = board[r][c]
-            szoveg = "."
-            szin = SZIN_RESET
-            if (r, c) in hibák and érték != 0:
-                szin = SZIN_PIROS
-                szoveg = str(érték)
-            elif érték != 0:
-                szoveg = str(érték)
-                if eredeti[r][c] != 0:
-                    szin = SZIN_KEK  
-                else:
-                    szin = SZIN_ZOLD 
-            else:
-                szin = SZIN_HALVANY
-
-            sor_str += f"{szin}{szoveg}{SZIN_RESET} "
-            if (c + 1) % 3 == 0:
-                sor_str += "| "
-
-        print(sor_str)
-        if (r + 1) % 3 == 0:
-            print("+-------+-------+-------+")
-
-
 def tábla_másolása(board):
     return [sor[:] for sor in board]
 
 
-def üres_mezők_száma(board):
-    db = 0
+def tábla_validálása_teljes(board):
     for r in range(9):
         for c in range(9):
-            if board[r][c] == 0:
-                db += 1
-    return db
+            szam = board[r][c]
+            if szam == 0: return False
 
-
-def nehézség_meghatározása(board):
-    ures = üres_mezők_száma(board)
-    if ures <= 30:
-        kategória = "könnyű"
-    elif ures <= 50:
-        kategória = "közepes"
-    else:
-        kategória = "nehéz"
-    return ures, kategória
-
-
-def tábla_érvényes(board):
-    for r in range(9):
-        for c in range(9):
-            érték = board[r][c]
-            if érték != 0:
-                board[r][c] = 0
-                if not szám_elhelyezhető(board, r, c, érték):
-                    board[r][c] = érték
-                    return False
-                board[r][c] = érték
+            board[r][c] = 0
+            if not szám_elhelyezhető(board, r, c, szam):
+                print(f"KRITIKUS HIBA a validálásnál: Sor {r}, Oszlop {c}, Érték {szam} ütközik!")
+                board[r][c] = szam
+                return False
+            board[r][c] = szam
     return True
+
+
+def generál_kitöltött_táblát():
+
+    max_probalkozas = 50
+    for i in range(max_probalkozas):
+        board = [[0] * 9 for _ in range(9)]
+
+        def backtrack_fill():
+            üres = üres_mező_keresése(board)
+            if üres is None:
+                return True
+            r, c = üres
+            számok = list(range(1, 10))
+            random.shuffle(számok)
+            for num in számok:
+                if szám_elhelyezhető(board, r, c, num):
+                    board[r][c] = num
+                    if backtrack_fill():
+                        return True
+                    board[r][c] = 0
+            return False
+
+        siker = backtrack_fill()
+
+        if siker:
+            if tábla_validálása_teljes(board):
+                return board
+            else:
+                print(f"Generálás {i + 1}. próba: Érvénytelen tábla, eldobva.")
+        else:
+            print(f"Generálás {i + 1}. próba: Nem sikerült kitölteni.")
+
+    print("Végzetes hiba: Nem sikerült valid táblát generálni.")
+    return [[0] * 9 for _ in range(9)]
 
 
 def megoldások_száma(board, limit=2):
@@ -160,159 +120,14 @@ def megoldások_száma(board, limit=2):
     backtrack()
     return számláló[0]
 
-def feladványok_betöltése(fájlnév):
-    táblák = []
-    aktuális = []
-    try:
-        f = open(fájlnév, "r")
-    except OSError:
-        print("Nem tudom megnyitni a fájlt:", fájlnév)
-        return []
-
-    for sor in f:
-        sor = sor.strip()
-        if not sor or sor.startswith("#"):
-            continue
-        if len(sor) != 9:
-            print("Hibás sor a fájlban (nem 9 karakter):", sor)
-            continue
-        sor_lista = []
-        for ch in sor:
-            if ch.isdigit():
-                sor_lista.append(int(ch))
-            else:
-                sor_lista.append(0)
-        aktuális.append(sor_lista)
-        if len(aktuális) == 9:
-            táblák.append(aktuális)
-            aktuális = []
-    f.close()
-    return táblák
-
-
-def új_feladvány_hozzáadása(táblák):
-    print("\n--- Új Sudoku feladvány felvétele ---")
-    print("Add meg a 9 sort, soronként 9 karakterrel (0-9 vagy '.'),")
-    print("ahol a '0' vagy '.' jelenti az üres mezőt.\n")
-
-    új_tábla = []
-    for i in range(9):
-        while True:
-            sor = input(f"{i + 1}. sor: ").strip()
-            if len(sor) != 9 or any(ch not in "0123456789." for ch in sor):
-                print("Hibás sor. Pontosan 9 karakter kell (0-9 vagy '.'). Próbáld újra.")
-            else:
-                break
-        sor_lista = []
-        for ch in sor:
-            if ch in "0.":
-                sor_lista.append(0)
-            else:
-                sor_lista.append(int(ch))
-        új_tábla.append(sor_lista)
-
-    táblák.append(új_tábla)
-
-    try:
-        f = open(PUZZLE_FAJL, "a")
-        f.write("\n# Új feladvány felvéve a programból\n")
-        for sor_lista in új_tábla:
-            f.write("".join(str(n) for n in sor_lista) + "\n")
-        f.close()
-        print("Feladvány sikeresen elmentve a puzzles.txt fájlba.")
-    except OSError:
-        print("Figyelem: a feladványt nem sikerült fájlba menteni.")
-
-    print("Új feladvány hozzáadva.")
-
-def játék_mentése(eredeti, aktuális, puzzle_index, elapsed, score):
-    try:
-        with open(SAVEGAME_FAJL, "w") as f:
-            f.write(str(puzzle_index) + "\n")
-            f.write(str(elapsed) + "\n")
-            f.write(str(score) + "\n")
-            eredeti_str = "".join(str(eredeti[r][c]) for r in range(9) for c in range(9))
-            aktuális_str = "".join(str(aktuális[r][c]) for r in range(9) for c in range(9))
-            f.write(eredeti_str + "\n")
-            f.write(aktuális_str + "\n")
-        print("Játék elmentve a savegame.txt fájlba.")
-    except OSError:
-        print("Hiba: a mentést nem sikerült elvégezni.")
-
-
-def játék_betöltése():
-    try:
-        with open(SAVEGAME_FAJL, "r") as f:
-            sorok = [s.strip() for s in f.readlines()]
-    except OSError:
-        print("Nincs mentett játék (savegame.txt).")
-        return None
-
-    if len(sorok) < 5:
-        print("Hibás mentés fájl.")
-        return None
-
-    try:
-        puzzle_index = int(sorok[0])
-        elapsed = float(sorok[1])
-        score = int(sorok[2])
-        eredeti_str = sorok[3]
-        aktuális_str = sorok[4]
-        if len(eredeti_str) != 81 or len(aktuális_str) != 81:
-            print("Hibás tábla a mentésben.")
-            return None
-        eredeti = []
-        aktuális = []
-        for i in range(9):
-            sor_e = []
-            sor_a = []
-            for j in range(9):
-                idx = i * 9 + j
-                sor_e.append(int(eredeti_str[idx]))
-                sor_a.append(int(aktuális_str[idx]))
-            eredeti.append(sor_e)
-            aktuális.append(sor_a)
-    except ValueError:
-        print("Hibás adatok a mentésben.")
-        return None
-
-    return {
-        "puzzle_index": puzzle_index,
-        "elapsed": elapsed,
-        "score": score,
-        "eredeti": eredeti,
-        "aktuális": aktuális,
-    }
-
-def generál_kitöltött_táblát():
-    board = [[0] * 9 for _ in range(9)]
-
-    def backtrack_fill():
-        üres = üres_mező_keresése(board)
-        if üres is None:
-            return True
-        r, c = üres
-        számok = list(range(1, 10))
-        random.shuffle(számok)
-        for num in számok:
-            if szám_elhelyezhető(board, r, c, num):
-                board[r][c] = num
-                if backtrack_fill():
-                    return True
-                board[r][c] = 0
-        return False
-
-    backtrack_fill()
-    return board
-
 
 def készít_feladvány_megoldásból(megoldott, fokozat):
     if fokozat == "könnyű":
-        cél_üres = 40
+        cél_üres = 30
     elif fokozat == "közepes":
-        cél_üres = 50
+        cél_üres = 45
     else:
-        cél_üres = 60
+        cél_üres = 58
 
     puzzle = tábla_másolása(megoldott)
     pozíciók = [(r, c) for r in range(9) for c in range(9)]
@@ -323,392 +138,269 @@ def készít_feladvány_megoldásból(megoldott, fokozat):
         if eltávolítva >= cél_üres:
             break
         temp = puzzle[r][c]
-        if temp == 0:
-            continue
         puzzle[r][c] = 0
         másolat = tábla_másolása(puzzle)
-        db = megoldások_száma(másolat, limit=2)
-        if db == 1:
-            eltávolítva += 1
-        else:
-            puzzle[r][c] = temp
 
+        db = megoldások_száma(másolat, limit=2)
+        if db != 1:
+            puzzle[r][c] = temp
+        else:
+            eltávolítva += 1
     return puzzle
 
 
-def új_sudoku_generálása():
-    print("\n--- Új Sudoku generálása ---")
-    print("Választható nehézség:")
-    print("1 - könnyű")
-    print("2 - közepes")
-    print("3 - nehéz")
-    v = input("Választás: ").strip()
-    if v == "1":
-        fok = "könnyű"
-    elif v == "2":
-        fok = "közepes"
-    elif v == "3":
-        fok = "nehéz"
-    else:
-        print("Ismeretlen választás.")
-        return
+#GUI
 
-    print("Teljes tábla generálása...")
-    megoldott = generál_kitöltött_táblát()
-    print("Feladvány készítése...")
-    puzzle = készít_feladvány_megoldásból(megoldott, fok)
-    print(f"Új {fok} Sudoku feladvány generálva. Indulhat a játék!")
-    interaktív_játék(puzzle)
+class SudokuApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Sudoku")
+        self.root.geometry("600x750")
 
-def feladvány_listázása(táblák):
-    print("\n--- Elérhető feladványok ---")
-    if not táblák:
-        print("Nincs egyetlen feladvány sem betöltve.")
-        return
-    for index in range(len(táblák)):
-        print(f"{index + 1}. feladvány")
-    print("-----------------------------")
+        self.eredeti_board = [[0] * 9 for _ in range(9)]
+        self.jelenlegi_board = [[0] * 9 for _ in range(9)]
+        self.megoldás_board = None
+        self.start_time = None
+        self.timer_running = False
+        self.score = 0
+        self.cells = {}
 
+        self._init_ui()
 
-def feladvány_megtekintése(táblák):
-    if not táblák:
-        print("Nincs betöltött feladvány.")
-        return
-    try:
-        s = input("Melyik feladványt szeretnéd látni? (sorszám): ")
-        idx = int(s) - 1
-    except ValueError:
-        print("Hibás sorszám.")
-        return
-    if idx < 0 or idx >= len(táblák):
-        print("Nincs ilyen sorszámú feladvány.")
-        return
-    print(f"\n--- {idx + 1}. feladvány ---")
-    tábla_megjelenítése(táblák[idx])
+        print("Alkalmazás indítása... Első generálás...")
+        self.uj_jatek_generalasa("közepes")
 
+    def _init_ui(self):
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
 
-def feladvány_megoldása(táblák):
-    if not táblák:
-        print("Nincs betöltött feladvány.")
-        return
-    try:
-        s = input("Melyik feladványt szeretnéd megoldani? (sorszám): ")
-        idx = int(s) - 1
-    except ValueError:
-        print("Hibás sorszám.")
-        return
-    if idx < 0 or idx >= len(táblák):
-        print("Nincs ilyen sorszámú feladvány.")
-        return
+        game_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Játék", menu=game_menu)
+        game_menu.add_command(label="Új játék (Könnyű)", command=lambda: self.uj_jatek_generalasa("könnyű"))
+        game_menu.add_command(label="Új játék (Közepes)", command=lambda: self.uj_jatek_generalasa("közepes"))
+        game_menu.add_command(label="Új játék (Nehéz)", command=lambda: self.uj_jatek_generalasa("nehéz"))
+        game_menu.add_separator()
+        game_menu.add_command(label="Játék mentése", command=self.mentes)
+        game_menu.add_command(label="Betöltés", command=self.betoltes)
+        game_menu.add_separator()
+        game_menu.add_command(label="Kilépés", command=self.root.quit)
 
-    tábla = tábla_másolása(táblák[idx])
-    print(f"\n--- {idx + 1}. feladvány (eredeti) ---")
-    tábla_megjelenítése(tábla)
-    print("\nMegoldás folyamatban...\n")
-    kezdet = time.time()
-    siker = sudoku_megoldása(tábla)
-    idő = time.time() - kezdet
-    if siker:
-        print("--- MEGOLDOTT TÁBLA ---")
-        tábla_megjelenítése(tábla)
-        print(f"\nA megoldás ideje: {idő:.3f} másodperc.")
-    else:
-        print("Ennek a feladványnak nincs megoldása.")
+        action_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Műveletek", menu=action_menu)
+        action_menu.add_command(label="Ellenőrzés", command=self.ellenorzes)
+        action_menu.add_command(label="Megoldás mutatása", command=self.megoldas_mutatasa)
+        action_menu.add_command(label="Tipp kérése (-20 pont)", command=self.tipp_kerese)
 
+        info_frame = tk.Frame(self.root)
+        info_frame.pack(pady=10)
+        self.lbl_time = tk.Label(info_frame, text="Idő: 00:00", font=("Arial", 12))
+        self.lbl_time.pack(side=tk.LEFT, padx=20)
+        self.lbl_score = tk.Label(info_frame, text="Pontszám: 0", font=("Arial", 12))
+        self.lbl_score.pack(side=tk.LEFT, padx=20)
 
-def feladvány_nehézségének_becslése(táblák):
-    if not táblák:
-        print("Nincs betöltött feladvány.")
-        return
-    try:
-        s = input("Melyik feladvány nehézségét szeretnéd? (sorszám): ")
-        idx = int(s) - 1
-    except ValueError:
-        print("Hibás sorszám.")
-        return
-    if idx < 0 or idx >= len(táblák):
-        print("Nincs ilyen sorszámú feladvány.")
-        return
-    ures, kategória = nehézség_meghatározása(táblák[idx])
-    print(f"\nA {idx + 1}. feladvány becsült nehézsége: {kategória} (üres mezők száma: {ures})")
+        grid_frame = tk.Frame(self.root, bg="black", bd=2)
+        grid_frame.pack(pady=10, padx=10)
 
+        self.blocks = [[None for _ in range(3)] for _ in range(3)]
+        for br in range(3):
+            for bc in range(3):
+                f = tk.Frame(grid_frame, bd=1, highlightbackground="black", highlightthickness=2, bg="white")
+                f.grid(row=br, column=bc, padx=1, pady=1)
+                self.blocks[br][bc] = f
 
-def feladvány_egyediségének_ellenőrzése(táblák):
-    if not táblák:
-        print("Nincs betöltött feladvány.")
-        return
-    try:
-        s = input("Melyik feladvány egyediségét ellenőrizzük? (sorszám): ")
-        idx = int(s) - 1
-    except ValueError:
-        print("Hibás sorszám.")
-        return
-    if idx < 0 or idx >= len(táblák):
-        print("Nincs ilyen sorszámú feladvány.")
-        return
-    tábla = tábla_másolása(táblák[idx])
-    print("\nMegoldások számának vizsgálata (max. 2-ig számolunk)...")
-    kezdet = time.time()
-    db = megoldások_száma(tábla, limit=2)
-    idő = time.time() - kezdet
-    if db == 0:
-        print("Ennek a feladványnak NINCS megoldása.")
-    elif db == 1:
-        print("Ennek a feladványnak PONTOSAN EGY megoldása van (egyedi).")
-    else:
-        print("Ennek a feladványnak TÖBB megoldása is van.")
-    print(f"Vizsgálat ideje: {idő:.3f} másodperc.")
+        validate_cmd = (self.root.register(self.validate_entry), '%P', '%W')
 
-def interaktív_játék(eredeti, aktuális=None, elapsed_before=0.0, score_before=0, puzzle_index=-1):
-    aktuális = tábla_másolása(aktuális) if aktuális is not None else tábla_másolása(eredeti)
+        for r in range(9):
+            for c in range(9):
+                parent = self.blocks[r // 3][c // 3]
 
-    megoldás = tábla_másolása(eredeti)
-    if not sudoku_megoldása(megoldás):
-        megoldás = None
-        print("Figyelem: a feladványnak nincs kiszámított megoldása, így tippek korlátozottak.")
+                row_in_block = r % 3
+                col_in_block = c % 3
 
-    start_time = time.time() - elapsed_before
-    score = score_before
-    hibák = set()
+                e = tk.Entry(parent, width=2, font=("Arial", 20, "bold"), justify="center",
+                             validate="key", validatecommand=validate_cmd, bd=1, relief="solid")
 
-    while True:
-        elapsed = time.time() - start_time
-        perc = int(elapsed // 60)
-        mp = int(elapsed % 60)
-        print(f"\nJelenlegi tábla (pontszám: {score}, idő: {perc} perc {mp} mp):")
-        tábla_megjelenítése_színes(aktuális, eredeti, hibák)
+                e.grid(row=row_in_block, column=col_in_block, padx=1, pady=1)
 
-        print("\nInteraktív mód – almenü:")
-        print("1 - Szám beírása / módosítása")
-        print("2 - Mező törlése")
-        print("3 - Jelenlegi állapot ellenőrzése")
-        print("4 - Tipp kérése (egy helyes mező felfedése)")
-        print("5 - Hibás mezők kiemelése")
-        print("6 - Idő és pontszám megjelenítése")
-        print("7 - Játék mentése")
-        print("8 - Játék feladása (megoldás megmutatása)")
-        print("0 - Vissza a főmenübe")
-        választás = input("Válassz: ").strip()
-        hibák = set()
+                e.bind('<KeyRelease>', lambda event, row=r, col=c: self.on_cell_change(event, row, col))
+                self.cells[(r, c)] = e
 
-        if választás == "0":
-            print("Vissza a főmenübe...")
-            break
+        btn_frame = tk.Frame(self.root)
+        btn_frame.pack(pady=20)
+        tk.Button(btn_frame, text="Ellenőrzés", command=self.ellenorzes, bg="#dddddd").pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Új Generálása", command=lambda: self.uj_jatek_generalasa("közepes"),
+                  bg="#dddddd").pack(side=tk.LEFT, padx=5)
 
-        elif választás == "1":
-            try:
-                sor = int(input("Sor (1-9): ")) - 1
-                oszlop = int(input("Oszlop (1-9): ")) - 1
-                érték = int(input("Szám (1-9): "))
-            except ValueError:
-                print("Hibás bevitel.")
-                continue
+    def validate_entry(self, new_value, widget_name):
+        if new_value == "": return True
+        if new_value.isdigit() and 1 <= int(new_value) <= 9 and len(new_value) == 1:
+            return True
+        return False
 
-            if not (0 <= sor < 9 and 0 <= oszlop < 9 and 1 <= érték <= 9):
-                print("Sor/oszlop/szám tartományon kívül.")
-                continue
+    def uj_jatek_generalasa(self, nehezseg):
+        print(f"\n--- ÚJ JÁTÉK GENERÁLÁSA ({nehezseg}) ---")
 
-            if eredeti[sor][oszlop] != 0:
-                print("Ezt a mezőt nem módosíthatod (eredeti, adott szám).")
-                continue
+        teljes = generál_kitöltött_táblát()
 
-            régi = aktuális[sor][oszlop]
-            aktuális[sor][oszlop] = 0 
+        print("Generált TELJES tábla (Ellenőrzéshez):")
+        for sor in teljes:
+            print(sor)
 
-            if not szám_elhelyezhető(aktuális, sor, oszlop, érték):
-                aktuális[sor][oszlop] = régi
-                score -= 5
-                print("Ez a lépés sérti a Sudoku szabályait. (-5 pont)")
-            else:
-                aktuális[sor][oszlop] = érték
+        puzzle = készít_feladvány_megoldásból(teljes, nehezseg)
+        self.jatek_inditasa(puzzle)
 
-                score += 5
-                üzenet = "Szabályos lépés! (+5 pont)"
+    def jatek_inditasa(self, board_matrix):
+        self.eredeti_board = tábla_másolása(board_matrix)
+        self.jelenlegi_board = tábla_másolása(board_matrix)
 
-                if megoldás is not None and megoldás[sor][oszlop] == érték:
-                    score += 5
-                    üzenet = "Teljesen jó szám, egyezik a megoldással is! (+10 pont)"
+        self.megoldás_board = tábla_másolása(self.eredeti_board)
+        sudoku_megoldása(self.megoldás_board)
 
-                print(üzenet)
-                print(f"Jelenlegi pontszám: {score}")
+        self.score = 0
+        self.start_time = time.time()
+        self.timer_running = True
+        self.update_timer()
+        self.redraw_board()
 
+    def redraw_board(self):
+        for r in range(9):
+            for c in range(9):
+                val = self.jelenlegi_board[r][c]
+                entry = self.cells[(r, c)]
 
-        elif választás == "2":
-            try:
-                sor = int(input("Sor (1-9): ")) - 1
-                oszlop = int(input("Oszlop (1-9): ")) - 1
-            except ValueError:
-                print("Hibás bevitel.")
-                continue
-            if not (0 <= sor < 9 and 0 <= oszlop < 9):
-                print("Sor/oszlop tartományon kívül.")
-                continue
-            if eredeti[sor][oszlop] != 0:
-                print("Ezt a mezőt nem törölheted (eredeti, adott szám).")
-                continue
-            aktuális[sor][oszlop] = 0
-            print("Mező törölve.")
+                entry.config(state="normal")
+                entry.delete(0, tk.END)
+                entry.config(bg="white")
 
-        elif választás == "3":
-            if not tábla_érvényes(aktuális):
-                print("A jelenlegi állapotban HIBA van (szabályt sért).")
-            else:
-                üres = üres_mező_keresése(aktuális)
-                if üres is None:
-                    if megoldás is not None:
-                        if aktuális == megoldás:
-                            elapsed = time.time() - start_time
-                            perc = int(elapsed // 60)
-                            mp = int(elapsed % 60)
-                            score += 500
-                            print("GRATULÁLOK! A Sudoku-t helyesen megoldottad! (+500 pont)")
-                            print(f"Összidő: {perc} perc {mp} mp")
-                            print(f"Végső pontszám: {score}")
-                            break
-                        else:
-                            print("A tábla kitöltött, de nem egyezik a megoldással.")
-                    else:
-                        másolat = tábla_másolása(aktuális)
-                        if sudoku_megoldása(másolat):
-                            print("A tábla kitöltött és érvényes megoldásnak tűnik.")
-                            break
-                        else:
-                            print("A tábla kitöltött, de nincs rá megoldás.")
+                if val != 0:
+                    entry.insert(0, str(val))
+
+                if self.eredeti_board[r][c] != 0:
+                    entry.config(fg="blue", bg="#e0e0e0", state="readonly")
                 else:
-                    print("Eddig minden szabályos, de a tábla még nincs kész.")
+                    entry.config(fg="black", bg="white", state="normal")
 
-        elif választás == "4":
-            if megoldás is None:
-                print("Nem áll rendelkezésre megoldás, nem tudok tippet adni.")
-                continue
-            üres_helyek = [(r, c) for r in range(9) for c in range(9)
-                           if aktuális[r][c] == 0]
-            if not üres_helyek:
-                print("Nincs üres mező, nincs mire tippet adni.")
-                continue
-            r, c = random.choice(üres_helyek)
-            aktuális[r][c] = megoldás[r][c]
-            print(f"Tipp: a ({r+1}, {c+1}) mező helyes értéke: {megoldás[r][c]}. (-20 pont)")
-            score -= 20
+        self.update_score_label()
 
-        elif választás == "5":
-            if megoldás is None:
-                print("Nem áll rendelkezésre megoldás, nem tudom a hibákat kiemelni.")
-                continue
-            hibák = set()
-            for r in range(9):
-                for c in range(9):
-                    if aktuális[r][c] != 0 and aktuális[r][c] != megoldás[r][c]:
-                        hibák.add((r, c))
-            if not hibák:
-                print("Jelenleg nincs eltérés a megoldástól azokon a mezőkön, ahol már írtál számot.")
-            else:
-                print("A pirossal jelölt mezők eltérnek a megoldástól.")
+    def on_cell_change(self, event, row, col):
+        entry = self.cells[(row, col)]
+        if entry.cget('state') == 'readonly':
+            return
 
-        elif választás == "6":
-            elapsed = time.time() - start_time
-            perc = int(elapsed // 60)
-            mp = int(elapsed % 60)
-            print(f"Eltelt idő: {perc} perc {mp} mp")
-            print(f"Jelenlegi pontszám: {score}")
+        val_str = entry.get()
+        try:
+            val = int(val_str) if val_str else 0
+        except ValueError:
+            val = 0
+        if self.jelenlegi_board[row][col] != val:
+            self.jelenlegi_board[row][col] = val
 
-        elif választás == "7":
-            elapsed = time.time() - start_time
-            játék_mentése(eredeti, aktuális, puzzle_index, elapsed, score)
-        
+    def update_timer(self):
+        if self.timer_running:
+            elapsed = int(time.time() - self.start_time)
+            mins = elapsed // 60
+            secs = elapsed % 60
+            self.lbl_time.config(text=f"Idő: {mins:02d}:{secs:02d}")
+            self.root.after(1000, self.update_timer)
 
-        elif választás == "8":
-            if megoldás is not None:
-                print("\n--- A feladvány egy helyes megoldása ---")
-                tábla_megjelenítése(megoldás)
-            else:
-                print("Nem sikerült megoldást számítani ehhez a feladványhoz.")
-            print("Visszatérés a főmenübe.")
-            break
+    def update_score_label(self):
+        self.lbl_score.config(text=f"Pontszám: {self.score}")
 
+    def ellenorzes(self):
+        hibak = 0
+        ures = 0
+        for r in range(9):
+            for c in range(9):
+                val = self.jelenlegi_board[r][c]
+                entry = self.cells[(r, c)]
+
+                if val == 0:
+                    ures += 1
+                    if self.eredeti_board[r][c] == 0:
+                        entry.config(bg="white")
+                elif self.eredeti_board[r][c] == 0:
+                    if val != self.megoldás_board[r][c]:
+                        entry.config(bg="#ffcccc")
+                        hibak += 1
+                    else:
+                        entry.config(bg="#ccffcc")
+
+        if hibak == 0 and ures == 0:
+            self.timer_running = False
+            self.score += 500
+            self.update_score_label()
+            messagebox.showinfo("Gratulálok!", f"Sikeresen megoldottad!\nPontszám: {self.score}")
+        elif hibak > 0:
+            self.score -= (hibak * 5)
+            self.update_score_label()
+            messagebox.showwarning("Ellenőrzés", f"{hibak} hibát találtam!")
         else:
-            print("Ismeretlen menüpont, próbáld újra.")
+            messagebox.showinfo("Ellenőrzés", "Eddig jó, de még nincs kész.")
 
+    def tipp_kerese(self):
+        ures_helyek = [(r, c) for r in range(9) for c in range(9) if self.jelenlegi_board[r][c] == 0]
+        if not ures_helyek:
+            messagebox.showinfo("Info", "Nincs üres mező.")
+            return
+        r, c = random.choice(ures_helyek)
+        helyes_szam = self.megoldás_board[r][c]
 
-def felhasználói_játék_puzzle_választással(táblák):
-    if not táblák:
-        print("Nincs betöltött feladvány.")
-        return
-    try:
-        s = input("Melyik feladvánnyal szeretnél játszani? (sorszám): ")
-        idx = int(s) - 1
-    except ValueError:
-        print("Hibás sorszám.")
-        return
-    if idx < 0 or idx >= len(táblák):
-        print("Nincs ilyen sorszámú feladvány.")
-        return
-    eredeti = tábla_másolása(táblák[idx])
-    puzzle_index = idx + 1
-    interaktív_játék(eredeti, puzzle_index=puzzle_index)
+        self.jelenlegi_board[r][c] = helyes_szam
+        entry = self.cells[(r, c)]
+        entry.config(state="normal")
+        entry.delete(0, tk.END)
+        entry.insert(0, str(helyes_szam))
+        entry.config(bg="yellow")
 
-def mentett_játék_indítása():
-    adatok = játék_betöltése()
-    if adatok is None:
-        return
-    print("Mentett játék betöltve, folytatás...")
-    interaktív_játék(
-        eredeti=adatok["eredeti"],
-        aktuális=adatok["aktuális"],
-        elapsed_before=adatok["elapsed"],
-        score_before=adatok["score"],
-        puzzle_index=adatok["puzzle_index"],
-    )
+        self.score -= 20
+        self.update_score_label()
 
+    def megoldas_mutatasa(self):
+        if not messagebox.askyesno("Feladom", "Biztosan feladod?"):
+            return
+        self.timer_running = False
+        self.jelenlegi_board = tábla_másolása(self.megoldás_board)
+        self.redraw_board()
 
-def menü_megjelenítése():
-    print("\n==============================")
-    print("   SUDOKU MEGOLDÓ ALKALMAZÁS")
-    print("==============================")
-    print("1 - Feladványok listázása")
-    print("2 - Feladvány megtekintése")
-    print("3 - Feladvány automatikus megoldása")
-    print("4 - Új feladvány felvétele kézzel")
-    print("5 - Feladvány nehézségének becslése")
-    print("6 - Ellenőrzés: egyedi-e a feladvány megoldása?")
-    print("7 - Felhasználói megoldás próbálása (interaktív játék)")
-    print("8 - Mentett játék betöltése")
-    print("9 - Új Sudoku generálása (könnyű/közepes/nehéz)")
-    print("0 - Kilépés")
-    print("==============================")
+    def mentes(self):
+        elapsed = time.time() - self.start_time
+        try:
+            with open(SAVEGAME_FAJL, "w") as f:
+                f.write("0\n")
+                f.write(str(elapsed) + "\n")
+                f.write(str(self.score) + "\n")
+                f.write("".join(str(self.eredeti_board[r][c]) for r in range(9) for c in range(9)) + "\n")
+                f.write("".join(str(self.jelenlegi_board[r][c]) for r in range(9) for c in range(9)) + "\n")
+            messagebox.showinfo("Mentés", "Játék mentve.")
+        except Exception as e:
+            messagebox.showerror("Hiba", f"Mentés sikertelen: {e}")
 
+    def betoltes(self):
+        try:
+            with open(SAVEGAME_FAJL, "r") as f:
+                sorok = [s.strip() for s in f.readlines()]
+            elapsed = float(sorok[1])
+            score = int(sorok[2])
+            eredeti_str = sorok[3]
+            aktualis_str = sorok[4]
+            eredeti = []
+            aktualis = []
+            for i in range(9):
+                eredeti.append([int(ch) for ch in eredeti_str[i * 9: (i + 1) * 9]])
+                aktualis.append([int(ch) for ch in aktualis_str[i * 9: (i + 1) * 9]])
 
-def main():
-    táblák = feladványok_betöltése(PUZZLE_FAJL)
+            self.jatek_inditasa(eredeti)
+            self.jelenlegi_board = aktualis
+            self.score = score
+            self.start_time = time.time() - elapsed
 
-    while True:
-        menü_megjelenítése()
-        választás = input("Válassz menüpontot: ").strip()
-
-        if választás == "1":
-            feladvány_listázása(táblák)
-        elif választás == "2":
-            feladvány_megtekintése(táblák)
-        elif választás == "3":
-            feladvány_megoldása(táblák)
-        elif választás == "4":
-            új_feladvány_hozzáadása(táblák)
-        elif választás == "5":
-            feladvány_nehézségének_becslése(táblák)
-        elif választás == "6":
-            feladvány_egyediségének_ellenőrzése(táblák)
-        elif választás == "7":
-            felhasználói_játék_puzzle_választással(táblák)
-        elif választás == "8":
-            mentett_játék_indítása()
-        elif választás == "9":
-            új_sudoku_generálása()
-        elif választás == "0":
-            print("Kilépés...")
-            break
-        else:
-            print("Ismeretlen menüpont, próbáld újra.")
+            self.redraw_board()
+            messagebox.showinfo("Betöltés", "Játék betöltve.")
+        except Exception as e:
+            messagebox.showerror("Hiba", "Nincs mentés.")
 
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = SudokuApp(root)
+    root.mainloop()
