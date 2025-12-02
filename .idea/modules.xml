@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/HaladoProg.iml" filepath="$PROJECT_DIR$/.idea/HaladoProg.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/HalProg.iml" filepath="$PROJECT_DIR$/.idea/HalProg.iml" />
     </modules>
   </component>
 </project>
