@@ -9,7 +9,6 @@ A program képes új Sudoku táblákat generálni különböző nehézségi szin
 - Nehézségválasztás: könnyű, közepes, nehéz
 - Nehézség becslése (üres mezők száma alapján)
 - Időmérés és pontszám megjelenítése
-- Megoldás egyediségének ellenőrzése (van-e több megoldás)
 - Tipp kérés (-pont)
 - Automatikus Sudoku-megoldás (backtracking algoritmus)
 - Hibák jelzése és helyes mezők kiemelése ellenőrzéskor
